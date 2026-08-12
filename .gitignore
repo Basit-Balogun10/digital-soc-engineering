@@ -1,0 +1,18 @@
+# Simulator/build output — source only gets committed, not generated artifacts.
+sim_build/
+obj_dir/
+*.vcd
+*.fst
+*.vpd
+*.fsdb
+coverage.dat
+coverage.info
+coverage_report/
+**/sim/coverage/
+**/sim/obj_dir/
+results.xml
+
+# cocotb / Python
+.venv/
+__pycache__/
+*.pyc
