@@ -1,22 +1,23 @@
+# Template Makefile for a new core under digital-soc-engineering/src/.
+# Copy this whole file into the new core's directory (e.g.
+# src/pillar-1/spi-controller/Makefile) and fill in the two spots marked
+# below. No .vscode/ needed alongside it -- the root-level
+# digital-soc-engineering/.vscode/tasks.json already lints any core
+# automatically on save by walking up from whichever file changed to
+# find its nearest Makefile.
+
 PROJECT_ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Packages must precede the modules that import them.
-RTL ?= rtl/mmio_register_bank.sv
-TB_PK ?= 
-TB ?= 
+RTL ?= rtl/<core>_pkg.sv rtl/<core>_top.sv  # <-- fill in for this core
+TB_PKG ?=
+TB ?=
 TOP ?=
 
-# RTL ?= rtl/uart_pkg.sv \
-#        rtl/tx_core/tx_pkg.sv \
-#        rtl/rx_core/rx_pkg.sv \
-#        rtl/baud_generator.sv \
-#        rtl/mmio_register_bank.sv \
-#        rtl/uart_top.sv
-# TB_PKG ?= tb/sv/tb_pkg.sv
-# TB ?= tb/sv/tb_uart.sv
-# TOP ?= tb_uart
-
-PKG ?= rtl/uart_pkg.sv
+# Set to this core's package file once it has one (e.g. rtl/spi_pkg.sv)
+# -- lint-all puts it first automatically. Leave empty if there's no
+# package yet.
+PKG ?=  # <-- fill in for this core
 
 TOOL ?= verilator
 SIM_TOOL ?= $(TOOL)
@@ -25,8 +26,8 @@ IVERILOG ?= iverilog
 BUILD_DIR ?= sim_build
 LINT_FLAGS ?=
 SIM_FLAGS ?=
-WAVEFILE ?= sim/waveforms/uart.fst
-WAVEFILE_VCD ?= sim/waveforms/uart.vcd
+WAVEFILE ?= sim/waveforms/wave.fst
+WAVEFILE_VCD ?= sim/waveforms/wave.vcd
 COVERAGE_DIR ?= sim/coverage
 COVERAGE_FILE ?= $(COVERAGE_DIR)/coverage.dat
 COVERAGE_REPORT_DIR ?= $(COVERAGE_DIR)/annotated
@@ -61,7 +62,7 @@ endif
 
 .DEFAULT_GOAL := help
 
-.PHONY: help lint sim wave e2e coverage clean
+.PHONY: help lint lint-all sim wave e2e coverage clean
 
 help:
 	@echo "Targets:"
