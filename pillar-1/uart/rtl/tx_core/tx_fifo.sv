@@ -11,24 +11,46 @@ module tx_fifo #(
     output logic tx_empty,
     output logic rx_full,
     output logic rx_empty,
-    output logic [7:0] tx_fifo_reg  [FIFO_DEPTH],
-    output logic [7:0] rx_fifo_reg  [FIFO_DEPTH]
+    output logic [7:0] tx_fifo_reg[FIFO_DEPTH],
+    output logic [7:0] rx_fifo_reg[FIFO_DEPTH]
 );
+  // extra-bit wide to track full vs empty when both pointers are equal (but addressing only uses lower N-1 bits, not including the extra MSB)
   logic [$clog2(FIFO_DEPTH):0] write_ptr;
   logic [$clog2(FIFO_DEPTH):0] read_ptr;
+
+  always_ff @(posedge clk) begin : tx_fifo_empty
+    if (!rst_n) begin
+      tx_empty <= '1;
+    end else begin
+      if (write_ptr == read_ptr) begin
+        tx_empty <= '1;
+      end else begin
+        tx_empty <= '0;
+      end
+    end
+  end
 
   always_ff @(posedge clk) begin : tx_fifo_push
     if (!rst_n) begin
       write_ptr <= '0;
+      tx_full   <= '0;
+      // shouldn't we be emptying the fifo_reg here too?
     end else begin
       if (push) begin
-        // TODO: revisit full/empty logic
-        if (write_ptr == 0) begin
+        // Compare bottom (N-1) bits without the LSB (extra bit to used to mark full vs empty)
+        if (write_ptr[$clog2(
+                FIFO_DEPTH
+            )-1:0] == read_ptr[$clog2(
+                FIFO_DEPTH
+            )-1:0] && write_ptr[$clog2(
+                FIFO_DEPTH
+            )] != read_ptr[$clog2(
+                FIFO_DEPTH
+            )]) begin
           tx_full <= '1;
         end else begin
           tx_fifo_reg[write_ptr] <= push_data;
-          // TODO: modulo/wrap logic here
-          write_ptr <= write_ptr - 1;
+          write_ptr <= write_ptr + 1;  // wraps implicitly
         end
       end
     end
@@ -36,7 +58,10 @@ module tx_fifo #(
 
   always_ff @(posedge clk) begin : tx_fifo_pop
     if (!rst_n) begin
-      read_ptr <= FIFO_DEPTH;
+      read_ptr <= '0;
+      rx_empty <= '1;
+      rx_full  <= '0;
+      pop_data <= '0;  // should this be 'x?
     end else begin
       if (pop) begin
         // TODO: revisit full/empty logic
