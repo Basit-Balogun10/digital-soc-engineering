@@ -8,7 +8,8 @@
 
 module mmio_register_bank (
     input logic clk,
-    input logic [3:0] address, // only the 4 bottom bits is needed to route actions across the ctrl r/w, status (r), tx_data (w) and rx_data (r).
+    // only the 4 bottom bits is needed to route actions across the ctrl r/w, status (r), tx_data (w) and rx_data (r).
+    input logic [3:0] address,
     input logic write_en,
     input logic read_en,
     input logic [31:0] wdata,

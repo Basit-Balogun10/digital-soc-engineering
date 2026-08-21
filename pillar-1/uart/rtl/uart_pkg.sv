@@ -7,4 +7,3 @@ package uart_pkg;
   } partity_e;
 
 endpackage
-

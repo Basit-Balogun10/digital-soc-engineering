@@ -98,8 +98,14 @@ lint:
 # file in isolation. $(PKG) goes first since packages must precede the
 # modules that import them. Picks up new files automatically as they're
 # added -- no per-file list to hand-maintain.
+#
+# -Wno-MULTITOP: expected right now, bottom-up, before uart_top.sv wires
+# components together -- each finished component (mmio_register_bank,
+# fifo, ...) is a genuinely independent top until something instantiates
+# it. Remove this suppression once uart_top.sv is real: from then on, an
+# unexpected extra top is worth catching again, not silencing.
 lint-all:
-	$(MAKE) lint RTL="$(PKG) $(shell find $(PROJECT_ROOT)rtl -name '*.sv' $(if $(PKG),! -name '$(notdir $(PKG))',) | sed 's|$(PROJECT_ROOT)||' | sort)"
+	$(MAKE) lint LINT_FLAGS="-Wno-MULTITOP" RTL="$(PKG) $(shell find $(PROJECT_ROOT)rtl -name '*.sv' $(if $(PKG),! -name '$(notdir $(PKG))',) | sed 's|$(PROJECT_ROOT)||' | sort)"
 
 sim:
 	$(SIM_CMD)
