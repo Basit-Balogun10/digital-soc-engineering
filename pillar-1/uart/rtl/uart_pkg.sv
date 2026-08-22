@@ -1,9 +1,9 @@
-package uart_pkg;
+// package uart_pkg;
 
-  typedef enum {
-      NONE,
-      EVEN,
-      ODD
-  } partity_e;
+//   typedef enum {
+//       NONE,
+//       EVEN,
+//       ODD
+//   } partity_e;
 
-endpackage
+// endpackage

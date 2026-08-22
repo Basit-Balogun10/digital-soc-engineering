@@ -14,6 +14,7 @@ module fifo #(
   // extra-bit wide to track full vs empty when both pointers are equal (but addressing only uses lower N-1 bits, not including the extra MSB)
   logic [$clog2(FIFO_DEPTH):0] write_ptr;
   logic [$clog2(FIFO_DEPTH):0] read_ptr;
+  logic is_full;
   // lower address bits match and the top lap-tracking/extra-bit differs
   assign is_full = write_ptr[$clog2(
       FIFO_DEPTH
@@ -62,18 +63,21 @@ module fifo #(
     end
   end
 
-  always_ff @(posedge clk) begin : fifo_pop
+  always_ff @(posedge clk) begin : fifo_read_ptr
     if (!rst_n) begin
       read_ptr <= '0;
     end else begin
-      if (pop) begin
-        if (write_ptr == read_ptr) begin
-          pop_data <= '0;
-        end else begin
-          pop_data <= fifo_reg[read_ptr[$clog2(FIFO_DEPTH)-1:0]];
-          read_ptr <= read_ptr + 1;  // wraps implicitly
-        end
+      if (pop && write_ptr != read_ptr) begin
+        read_ptr <= read_ptr + 1;  // wraps implicitly
       end
+    end
+  end
+
+  always_comb begin : fifo_pop_data
+    if (write_ptr == read_ptr) begin
+      pop_data = '0;
+    end else begin
+      pop_data = fifo_reg[read_ptr[$clog2(FIFO_DEPTH)-1:0]];
     end
   end
 endmodule
