@@ -53,7 +53,6 @@ module fifo #(
   always_ff @(posedge clk) begin : fifo_push
     if (!rst_n) begin
       write_ptr <= '0;
-      // shouldn't we be emptying the fifo_reg here too?
     end else begin
       // Compare bottom (N-1) bits without the LSB (extra bit to used to mark full vs empty)
       if (push && !is_full) begin
