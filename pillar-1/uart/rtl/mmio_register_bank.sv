@@ -16,8 +16,12 @@ module mmio_register_bank (
     input logic [7:0] pop_data,
     output logic [31:0] ctrl_reg,
     output logic [31:0] rdata,
-    output logic pop_request
+    output logic pop_request,
+    output logic push_request,
+    output logic [7:0] push_data
 );
+  logic is_tx_data_write = write_en && address[3:0] == 4'h08;
+
   always_ff @(posedge clk) begin : ctrl_write
     if (write_en && address[3:0] == 4'h00) begin
       ctrl_reg[31:16] <= wdata[31:16];
@@ -28,7 +32,11 @@ module mmio_register_bank (
     ctrl_reg[15:4] <= '0;  // Reserved bits
   end
 
-  // CTRL READ
+  // TX_DATA WRITE
+  assign push_request = is_tx_data_write ? '1 : '0;
+  assign push_data = is_tx_data_write ? wdata[7:0] : 'x;
+
+  // RX_DATA AND CTRL READ
   assign rdata = (read_en && address[3:0] == 4'h0C) ? 32'(pop_data) : (read_en && address[3:0] == 4'h00) ? ctrl_reg : 'x;
 
   always_comb begin : rx_data_read
@@ -38,11 +46,6 @@ module mmio_register_bank (
       pop_request = '0;
     end
   end
-  // TX_DATA WRITE (Oh this needs the fifo too? lol)
-  // always_ff @(posedge clk) begin : tx_data_writete
-  //   if()
-
-  // end
 
 
 endmodule

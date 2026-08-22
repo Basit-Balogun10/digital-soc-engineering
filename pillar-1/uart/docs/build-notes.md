@@ -132,6 +132,18 @@ One consequence worth being aware of, not something needing action: since `pop_d
 
 ---
 
+## TX_DATA write — the write-side mirror of RX_DATA's pop_request
+
+**Q: A registered `push_request`/`push_data` (a draft `always_ff`, `<=` on both) — combined with `fifo`'s own registered write — would that be a 2-cycle delay before the byte's actually stored?**
+Yes, exactly right — same category of problem as the read-side registered `pop_data`, mirrored to the write side. Registering `push_request`/`push_data` means the CPU's write on cycle 0 only becomes a valid `push_request`/`push_data` starting cycle 1 (one edge of latency just to get the decode into registered form), and `fifo`'s own `fifo_push` block — itself edge-triggered — only actually captures the byte into `fifo_reg` at the edge closing cycle 1, visible cycle 2. Two registered stages stacked in series, two cycles before anything's actually stored.
+
+Making `push_request`/`push_data` combinational instead (plain `assign`s, no clocked block) removes the unnecessary stage: they reflect `write_en`/`wdata` instantly, so `fifo`'s own write logic — the only remaining registered stage, and the fundamentally necessary one, since creating new state always needs at least one real clock edge — captures the byte at the edge closing the *same* cycle the CPU wrote it. One cycle, not two. Same rule of thumb as before: writes must cross a clock edge to create state, but any *extra* registration before that unavoidable one is just needless latency.
+
+**Q: `push_data`'s fallback branch (`write_en && ... ? wdata[7:0] : 'x`) — same `'x` question as CTRL's `rdata`?**
+Yes, same legitimate "don't-care" use, mirrored to the write side. `push_request` is `'0` in that exact same branch (same condition drives both), and `fifo`'s `fifo_push` block only ever samples `push_data` when `push` is actually asserted (`if (push && !is_full)`) — so whatever `push_data` shows when `push_request` is low is never consumed by anything. Genuinely irrelevant, safe don't-care, not the "avoid X" case (that one's about X standing in for real hardware behavior, like an unreset register).
+
+---
+
 ## `fifo.sv` — going from `tx_fifo` to a generic, shared module
 
 **Q: If push always writes `tx_fifo_reg` and pop always reads `rx_fifo_reg`, shouldn't the module just be called `fifo`?**
