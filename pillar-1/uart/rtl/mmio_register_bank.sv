@@ -6,21 +6,22 @@
     (0x0C) RX_DATA (R) -> [8:0]DATA
  */
 
-module mmio_register_bank (
+module mmio_register_bank
+  import uart_pkg::mmio_status_flags_t;
+(
     input logic clk,
     // only the 4 bottom bits is needed to route actions across the ctrl r/w, status (r), tx_data (w) and rx_data (r).
     input logic [3:0] address,
     input logic write_en,
     input logic read_en,
     input logic [31:0] wdata,
-    input logic [7:0] pop_data,
+    input mmio_status_flags_t status_flags,
     output logic [31:0] ctrl_reg,
     output logic [31:0] rdata,
-    output logic pop_request,
-    output logic push_request,
-    output logic [7:0] push_data
+    fifo_ctrl_if.mmio fifo_ctrl
 );
-  logic is_tx_data_write = write_en && address[3:0] == 4'h08;
+  logic is_tx_data_write;
+  assign is_tx_data_write = write_en && address[3:0] == 4'h08;
 
   always_ff @(posedge clk) begin : ctrl_write
     if (write_en && address[3:0] == 4'h00) begin
@@ -33,17 +34,24 @@ module mmio_register_bank (
   end
 
   // TX_DATA WRITE
-  assign push_request = is_tx_data_write ? '1 : '0;
-  assign push_data = is_tx_data_write ? wdata[7:0] : 'x;
+  assign fifo_ctrl.push = is_tx_data_write ? '1 : '0;
+  assign fifo_ctrl.push_data = is_tx_data_write ? wdata[7:0] : 'x;
 
-  // RX_DATA AND CTRL READ
-  assign rdata = (read_en && address[3:0] == 4'h0C) ? 32'(pop_data) : (read_en && address[3:0] == 4'h00) ? ctrl_reg : 'x;
+  // STATUS, RX_DATA AND CTRL READ 
+  assign rdata = (read_en && address[3:0] == 4'h04) ?
+      // upper bits are reserved
+      {
+        {21{1'b0}},
+        status_flags
+      }
+      : (read_en && address[3:0] == 4'h0C) ?
+          32'(fifo_ctrl.pop_data) : (read_en && address[3:0] == 4'h00) ? ctrl_reg : 'x;
 
   always_comb begin : rx_data_read
     if (read_en && address[3:0] == 4'h0C) begin
-      pop_request = '1;
+      fifo_ctrl.pop = '1;
     end else begin
-      pop_request = '0;
+      fifo_ctrl.pop = '0;
     end
   end
 
