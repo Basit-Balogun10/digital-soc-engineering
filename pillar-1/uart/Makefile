@@ -16,8 +16,6 @@ TOP ?=
 # TB ?= tb/sv/tb_uart.sv
 # TOP ?= tb_uart
 
-PKG ?= rtl/uart_pkg.sv
-
 TOOL ?= verilator
 SIM_TOOL ?= $(TOOL)
 VERILATOR ?= verilator
@@ -95,9 +93,16 @@ lint:
 # Lints every .sv file under rtl/ together (not just $(RTL)'s single-file
 # default), so real cross-file issues -- a missing package, a mismatched
 # import -- actually surface, instead of being masked by linting each
-# file in isolation. $(PKG) goes first since packages must precede the
-# modules that import them. Picks up new files automatically as they're
-# added -- no per-file list to hand-maintain.
+# file in isolation. Sorted by KIND, not just alphabetically: every
+# *_pkg.sv first, then every *_if.sv, then everything else -- packages
+# can't depend on anything else in this project, interfaces might
+# reference a package's own types, and modules might need both. This is
+# a naming CONVENTION this project already follows (fifo_ctrl_if.sv,
+# mmio_if.sv, uart_pkg.sv, tx_pkg.sv, rx_pkg.sv), not something enforced
+# by the language itself -- name a new package/interface file any other
+# way and it silently falls into the "everything else" group instead.
+# No per-file list to hand-maintain either way; new files are picked up
+# automatically as long as they follow the *_pkg.sv/*_if.sv convention.
 #
 # -Wno-MULTITOP: expected right now, bottom-up, before uart_top.sv wires
 # components together -- each finished component (mmio_register_bank,
@@ -105,7 +110,10 @@ lint:
 # it. Remove this suppression once uart_top.sv is real: from then on, an
 # unexpected extra top is worth catching again, not silencing.
 lint-all:
-	$(MAKE) lint LINT_FLAGS="-Wno-MULTITOP" RTL="$(PKG) $(shell find $(PROJECT_ROOT)rtl -name '*.sv' $(if $(PKG),! -name '$(notdir $(PKG))',) | sed 's|$(PROJECT_ROOT)||' | sort)"
+	$(MAKE) lint LINT_FLAGS="-Wno-MULTITOP" RTL="$(shell \
+		find $(PROJECT_ROOT)rtl -name '*_pkg.sv' | sed 's|$(PROJECT_ROOT)||' | sort; \
+		find $(PROJECT_ROOT)rtl -name '*_if.sv' | sed 's|$(PROJECT_ROOT)||' | sort; \
+		find $(PROJECT_ROOT)rtl -name '*.sv' ! -name '*_pkg.sv' ! -name '*_if.sv' | sed 's|$(PROJECT_ROOT)||' | sort)"
 
 sim:
 	$(SIM_CMD)
