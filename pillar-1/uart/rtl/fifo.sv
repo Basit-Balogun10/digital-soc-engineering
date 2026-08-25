@@ -1,16 +1,15 @@
-module fifo #(
-    parameter int unsigned FIFO_DEPTH = 16
-) (
+module fifo
+  import uart_pkg::DATA_BITS, uart_pkg::FIFO_DEPTH;
+(
     input logic clk,
     input logic rst_n,
     output logic full,
     output logic empty,
-    output logic [7:0] fifo_reg[FIFO_DEPTH],
+    output logic [DATA_BITS - 1:0] fifo_reg[FIFO_DEPTH],
     fifo_ctrl_if.fifo fifo_ctrl
 );
   // extra-bit wide to track full vs empty when both pointers are equal (but addressing only uses lower N-1 bits, not including the extra MSB)
-  logic [$clog2(FIFO_DEPTH):0] write_ptr;
-  logic [$clog2(FIFO_DEPTH):0] read_ptr;
+  logic [$clog2(FIFO_DEPTH):0] write_ptr, read_ptr;
   logic is_full;
   // lower address bits match and the top lap-tracking/extra-bit differs
   assign is_full = write_ptr[$clog2(

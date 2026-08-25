@@ -8,7 +8,7 @@ Running log of questions asked (and answered) while implementing this module, ke
 
 **Q: Should there be an `else` in `ctrl_write`'s `always_ff`, to avoid a latch?**
 No — that framing borrows a rule from the wrong context. Missing-branch latch inference is a *combinational* logic concern (`always_comb`/`always @*`). `always_ff` is edge-triggered by construction, so it always synthesizes to a flip-flop regardless of whether every branch assigns something. No `else` just means "hold previous value on this edge," which is normal register behavior, not an inferred latch.
-
+    
 **Q: Should CTRL read be combinational or sequential — why is write sequential but read wants to be instant?**
 Combinational read, sequential write — settled by what's live in the code (`assign rdata = ... ? ctrl_reg : 'x;`, with the sequential alternative commented out). The determinant isn't "are we touching a register," it's *who's creating new state vs. exposing existing state*. Write creates new state, so it must land in a flip-flop on a clock edge. Read doesn't create anything, it just selects what's already stored — making it sequential would add a needless cycle of latency that bus protocols like APB/AXI4-Lite don't want.
 
@@ -205,3 +205,19 @@ $$\text{baud} = \frac{f_{PCLK2}}{16 \times \text{USARTDIV}}, \qquad \text{USARTD
 Worked example at $115200$ baud, $f_{PCLK2} = 84\text{ MHz}$: $\text{USARTDIV} = \frac{84{,}000{,}000}{16 \times 115{,}200} \approx 45.57 \implies \text{Mantissa}=45,\ \text{Fraction}=\text{round}(0.57\times16)=9$. The fractional stage works by *dithering* the count length — counting to Mantissa most of the time, occasionally one cycle longer — so the *average* tick rate lands on the fractional target even though any single tick period is still a whole number of cycles.
 
 The doc's own spec defaults to the plain integer counter for this design ("comfortably close enough" at this specific clock/baud combination) — but decided to build the fractional route instead, matching real silicon, rather than the doc's simpler default.
+
+---
+
+## `tx_shift_register`/`tx_fsm` — shift timing, and a real bug in `tx_start_pulse`'s trigger condition
+
+**Q: `tx_shift_register`'s doc entry says "one bit per detected tick" — literally every raw (1-of-16) tick, or once per detected bit period?**
+Once per detected *bit-period* tick — the doc's own one-line "what it is" summary is loose/imprecise here, and disagrees with its own more careful bullets a few lines down: `tx_shift_register`'s "what it does"/"when it acts" both say "on a **detected bit-period tick**," and `tx_fsm`'s own flow says shift-enable asserts "**once per bit period**." Shifting on every raw tick would move the register 16 positions during a single actual bit period on the wire, which doesn't correspond to anything real — worth trusting the detailed bullets over one-line summaries when a doc's own wording disagrees with itself like this.
+
+**Q: The doc says `tx_start_pulse` fires "if `tx_fsm` is currently idle and `tx_fifo` was empty *before this push*." Shouldn't the real trigger just be "fifo has entries AND fsm is idle," continuously evaluated, so already-queued bytes actually get drained one after another?**
+Yes — this is a real bug in the doc's stated condition, not a misreading, confirmed by checking `tx_fsm`'s own state transition table directly: `TX_STOP` always returns to `TX_IDLE` (no conditional/autonomous continuation), and `TX_IDLE`'s *only* exit is `tx_start_pulse`. If the pulse is generated *only* by "fifo was empty before this specific push" (tied to a write event), trace a 3-byte burst: byte 1's push genuinely catches the fifo empty → pulses correctly, transmits. Bytes 2 and 3 are pushed while the fifo already has byte 1 queued → "empty before this push" is false, no pulse for them. And once `tx_fsm` finishes byte 1 and returns to `TX_IDLE`, nothing re-evaluates anything, since no new write is happening at that instant. Bytes 2 and 3 would sit in `tx_fifo` forever — stranding every queued byte except the first in any burst, defeating the entire point of buffering ahead of time.
+
+The underlying premise settles it: a `TX_DATA` write is unconditionally "send this as soon as possible" — there's no other reason that register exists, no separate "queue but don't send yet" semantic anywhere in real UART hardware. That extends to every byte already queued too, not just the one just written. The correct trigger is a continuously-evaluated condition — fifo not empty AND fsm idle — independent of whether a write is currently occurring, so the instant `tx_fsm` lands back in `TX_IDLE` mid-burst, the condition is still true and it keeps draining until the fifo genuinely empties.
+
+Confirmed against real hardware, not just internal doc-consistency: STM32 USART's `TXE`/FIFO-not-full flag drives an autonomous refill — the shift engine continuously checks "queued byte + currently idle" and loads the next one with zero further software involvement, completely independent of new writes. The classic 16550 UART's TX FIFO works the same way. Both have worked this way for decades — the doc's push-triggered-only wording is the outlier here, not real hardware.
+
+Implementation nuance to keep in mind later: the doc calls `tx_start_pulse` a one-cycle pulse, but "not empty AND idle" as a plain combinational condition would stay *high* for as long as both hold, not blip once. Probably harmless for `tx_fsm` itself, since it only samples the signal while actually sitting in `TX_IDLE` and stops caring the instant it leaves — but worth double-checking if anything else later expects a genuine one-shot pulse rather than a held level.

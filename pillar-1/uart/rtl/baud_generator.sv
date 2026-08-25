@@ -1,11 +1,12 @@
-module baud_generator (
+module baud_generator
+  import uart_pkg::BAUD_DIV_WIDTH;
+(
     input logic clk,
     input logic rst_n,
-    input logic [15:0] baud_div,
+    input logic [BAUD_DIV_WIDTH - 1:0] baud_div,
     output logic tick
 );
-
-  logic [15:0] count;
+  logic [BAUD_DIV_WIDTH - 1:0] count;
 
   always_ff @(posedge clk, negedge rst_n) begin : baud_count
     if (!rst_n) begin
@@ -22,5 +23,4 @@ module baud_generator (
 
   // Pulse when counts reaches D-1
   assign tick = count == (baud_div - 1) ? '1 : '0;
-
 endmodule
