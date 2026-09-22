@@ -3,8 +3,10 @@ module fifo
 (
     input logic clk,
     input logic rst_n,
+    input logic is_rx,
     output logic full,
     output logic empty,
+    output logic overrun,
     output logic [DATA_BITS - 1:0] fifo_reg[FIFO_DEPTH],
     fifo_ctrl_if.fifo fifo_ctrl
 );
@@ -49,11 +51,15 @@ module fifo
   always_ff @(posedge clk) begin : fifo_push
     if (!rst_n) begin
       write_ptr <= '0;
+      overrun   <= '0;
     end else begin
       // Compare bottom (N-1) bits without the LSB (extra bit to used to mark full vs empty)
       if (fifo_ctrl.push && !is_full) begin
+        overrun <= '0;
         fifo_reg[write_ptr[$clog2(FIFO_DEPTH)-1:0]] <= fifo_ctrl.push_data;
         write_ptr <= write_ptr + 1;  // wraps implicitly
+      end else if (fifo_ctrl.push && is_full && is_rx) begin
+        overrun <= '1;
       end
     end
   end

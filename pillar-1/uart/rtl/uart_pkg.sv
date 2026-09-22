@@ -28,6 +28,6 @@ package uart_pkg;
   parameter int unsigned DATA_BITS = 8;
   parameter parity_e PARITY_MODE = EVEN;
   parameter stop_bits_e STOP_BITS = ONE_STOP_BIT;
-  parameter int unsigned OVERSAMPLE_N = 16;
   parameter int unsigned FIFO_DEPTH = 16;
+  parameter int unsigned OVERSAMPLE_N = 16;
 endpackage

@@ -6,4 +6,6 @@ package tx_pkg;
     TX_PARITY,
     TX_STOP
   } tx_state_e;
+
+  parameter int unsigned MAX_FRAME_WIDTH = 12;
 endpackage

@@ -1,6 +1,5 @@
 interface mmio_if;
-  // only the 4 bottom bits is needed to route actions across the ctrl r/w, status (r), tx_data (w) and rx_data (r).
-  logic [3:0] address;
+  logic [3:0] address; // only the 4 bottom bits is needed to route actions across the ctrl r/w, status (r), tx_data (w) and rx_data (r).
   logic write_en;
   logic read_en;
   logic [31:0] wdata;
