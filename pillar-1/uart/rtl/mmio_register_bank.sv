@@ -54,6 +54,7 @@ module mmio_register_bank
       clear_rx_valid = '1;
     end else begin
       fifo_ctrl.pop = '0;
+      clear_rx_valid = '0;
     end
   end
 
