@@ -16,8 +16,8 @@ module majority_voter
 
   assign oversampling_done = 32'(oversample_count) > RightSamplingPoint;
   assign voted_rx = oversampling_done ? (sample_a & sample_b) | (sample_b & sample_c) | (sample_a & sample_c) : 'x;
-  assign noise_err = oversampling_done ? (sample_a != sample_b) || (sample_b != sample_c) || (sample_a != sample_c) : 'x;
-
+  assign noise_err = oversampling_done ? (sample_a != sample_b) || (sample_b != sample_c) || (sample_a != sample_c)
+      : 'x;
   always_ff @(posedge clk) begin : sampling_left_right_center
     if (!rst_n) begin
       sample_a <= '0;

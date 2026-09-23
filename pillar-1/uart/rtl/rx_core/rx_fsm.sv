@@ -10,7 +10,7 @@ module rx_fsm
     input logic voted_rx,
     input logic oversampling_done,
     input logic [$clog2(OVERSAMPLE_N) - 1:0] oversample_count,
-    input logic rx_data_bits,
+    input logic [DATA_BITS - 1:0] rx_data_bits,
     input logic parity_err,
     input logic rx_break,
     input parity_e parity_mode,
@@ -20,7 +20,7 @@ module rx_fsm
     output logic rx_shift_enable,
     output logic rx_valid,
     output logic rx_push,
-    output logic rx_push_data,
+    output logic [DATA_BITS - 1:0] rx_push_data,
     output logic framing_err
 );
   rx_state_e state, next_state;

@@ -26,7 +26,7 @@ module break_detector
     if (!rst_n) begin
       low_rx_sync_count <= '0;
     end else begin
-      if (rx_sync && rx_break) begin
+      if (rx_sync) begin
         low_rx_sync_count <= '0;
       end else if (!rx_sync && bit_period_complete && low_rx_sync_count != FrameWidth) begin
         low_rx_sync_count <= low_rx_sync_count + 1;

@@ -59,13 +59,14 @@ endif
 
 .DEFAULT_GOAL := help
 
-.PHONY: help lint sim wave e2e coverage clean
+.PHONY: help lint lint-all svlint sim wave e2e coverage clean
 
 help:
 	@echo "Targets:"
 	@echo "  make help     - show this help"
 	@echo "  make lint     - syntax/lint check \$$(RTL) only"
 	@echo "  make lint-all - lint every .sv file under rtl/ together (catches cross-file issues)"
+	@echo "  make svlint   - fast per-file style/pattern lint via svlint (see ../../.svlint.toml)"
 	@echo "  make sim      - build and run the selected simulator"
 	@echo "  make wave     - open the waveform in VS Code"
 	@echo "  make coverage - annotate Verilator coverage into sim/coverage/annotated"
@@ -111,9 +112,19 @@ lint:
 # unexpected extra top is worth catching again, not silencing.
 lint-all:
 	$(MAKE) lint LINT_FLAGS="-Wno-MULTITOP" RTL="$(shell \
-		find $(PROJECT_ROOT)rtl -name '*_pkg.sv' | sed 's|$(PROJECT_ROOT)||' | sort; \
-		find $(PROJECT_ROOT)rtl -name '*_if.sv' | sed 's|$(PROJECT_ROOT)||' | sort; \
-		find $(PROJECT_ROOT)rtl -name '*.sv' ! -name '*_pkg.sv' ! -name '*_if.sv' | sed 's|$(PROJECT_ROOT)||' | sort)"
+		find $(PROJECT_ROOT)rtl -type f -name '*_pkg.sv' | sed 's|$(PROJECT_ROOT)||' | sort; \
+		find $(PROJECT_ROOT)rtl -type f -name '*_if.sv' | sed 's|$(PROJECT_ROOT)||' | sort; \
+		find $(PROJECT_ROOT)rtl -type f -name '*.sv' ! -name '*_pkg.sv' ! -name '*_if.sv' | sed 's|$(PROJECT_ROOT)||' | sort)"
+
+# Fast per-file style/pattern gate (svlint, config in ../../.svlint.toml).
+# Complements lint-all: svlint never elaborates, so it can't catch
+# cross-file issues -- but it runs in a fraction of the time and enforces
+# the naming/spacing/structural conventions lint-all doesn't check.
+# CI-runnable: exits nonzero on any failure. Manual-only from the editor
+# (see tasks.json "svlint"): keep it OFF triggerTaskOnSave, the autosave
+# pile-up is what falls over.
+svlint:
+	svlint $(shell find $(PROJECT_ROOT)rtl -type f -name '*.sv' | sort)
 
 sim:
 	$(SIM_CMD)

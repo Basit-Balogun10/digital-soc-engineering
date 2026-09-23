@@ -26,7 +26,7 @@ module break_generator
       if (tx_break && !send_break) begin
         bit_period_complete_count <= '0;
       end else if (bit_period_complete && bit_period_complete_count != FrameWidth) begin
-        // capped at frame width rather than counting indefinitely        
+        // capped at frame width rather than counting indefinitely
         bit_period_complete_count <= bit_period_complete_count + 1;
       end
     end
