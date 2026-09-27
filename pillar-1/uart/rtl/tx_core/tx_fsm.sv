@@ -92,6 +92,10 @@ module tx_fsm
     next_state = state;
 
     case (state)
+      // TODO (spurious-START guard): pulse reads fifo_empty one cycle behind the
+      // committing pop, so drain-to-empty still looks GO and starts a phantom
+      // 0x00 frame. uart_top must form the pulse on post-pop occupancy
+      // (occupancy - committing pop >= 1, fifo_occupancy is exported for this).
       TX_IDLE: if (tx_start_pulse && !cts_sync) next_state = TX_START;
       TX_START:
       if (cts_sync) next_state = TX_IDLE;
