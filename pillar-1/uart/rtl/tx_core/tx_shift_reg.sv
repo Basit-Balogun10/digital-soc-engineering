@@ -6,12 +6,10 @@ module tx_shift_reg
     input logic shift_enable,
     input logic load_enable,
     input logic [DATA_BITS - 1:0] tx_fifo_pop_data,
-    output logic tx_fifo_pop,
     output logic tx_data_bit
 );
   logic [DATA_BITS - 1:0] shift_reg;
   assign tx_data_bit = shift_reg[0];
-  assign tx_fifo_pop = load_enable;
 
   always_ff @(posedge clk) begin : drive_shift_reg
     if (!rst_n) begin

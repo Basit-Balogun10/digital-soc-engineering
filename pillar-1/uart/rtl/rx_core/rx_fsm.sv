@@ -13,6 +13,8 @@ module rx_fsm
     input logic [DATA_BITS - 1:0] rx_data_bits,
     input logic parity_err,
     input logic rx_break,
+    input logic rts,
+    input logic autobaud_en,
     input parity_e parity_mode,
     input stop_bits_e stop_bits,
     output logic oversample_counter_rst_n,
@@ -21,7 +23,8 @@ module rx_fsm
     output logic rx_valid,
     output logic rx_push,
     output logic [DATA_BITS - 1:0] rx_push_data,
-    output logic framing_err
+    output logic framing_err,
+    output logic rts_err
 );
   rx_state_e state, next_state;
   logic bit_period_complete;
@@ -70,14 +73,20 @@ module rx_fsm
     rx_valid = '0;
     rx_push = '0;
     rx_push_data = 'x;
+    rts_err = '0;
 
     case (state)
       RX_IDLE:
-      if (!(rx_sync || rx_break)) begin
+      if (!(autobaud_en || rts || rx_sync || rx_break)) begin
         next_state = RX_START_VERIFY;
+      end else if (rts && !rx_sync) begin
+        rts_err = '1;
       end
       RX_START_VERIFY: begin
-        if (oversampling_done && !voted_rx) next_state = RX_DATA;
+        if (rts && !rx_sync) begin
+          rts_err = '1;
+          next_state = RX_IDLE;
+        end else if (oversampling_done && !voted_rx) next_state = RX_DATA;
         else if (oversampling_done && voted_rx) next_state = RX_IDLE;
       end
       RX_DATA: begin
@@ -104,6 +113,7 @@ module rx_fsm
         rx_valid = '0;
         rx_push = '0;
         rx_push_data = 'x;
+        rts_err = '0;
       end
     endcase
   end

@@ -4,19 +4,21 @@ module tx_fsm
   import uart_pkg::stop_bits_e, uart_pkg::ONE_STOP_BIT, uart_pkg::TWO_STOP_BITS;
   import tx_pkg::tx_state_e, tx_pkg::TX_IDLE, tx_pkg::TX_START, tx_pkg::TX_DATA, tx_pkg::TX_PARITY, tx_pkg::TX_STOP;
 (
-    input  logic clk,
-    input  logic rst_n,
-    input  logic tick,
-    input  logic tx_start_pulse,
-    input  logic tx_data_bit,
-    input  logic parity_bit,
+    input logic clk,
+    input logic rst_n,
+    input logic tick,
+    input logic tx_start_pulse,
+    input logic tx_data_bit,
+    input logic parity_bit,
     input logic tx_break,
+    input logic cts_sync,
     input parity_e parity_mode,
     input stop_bits_e stop_bits,
     output logic tx,
     output logic tx_busy,
     output logic tx_shift_enable,
-    output logic tx_load_enable
+    output logic tx_load_enable,
+    output logic tx_fifo_pop
 );
   tx_state_e state, next_state;
   logic bit_period_complete;
@@ -67,7 +69,21 @@ module tx_fsm
   always_ff @(posedge clk) begin : state_register
     if (!rst_n) begin
       state <= TX_IDLE;
+      tx_fifo_pop <= '0;
+      tx_load_enable <= '0;
     end else begin
+      if (state == TX_STOP && next_state == TX_IDLE) begin
+        tx_fifo_pop <= '1;
+      end else begin
+        tx_fifo_pop <= '0;
+      end
+
+      if (state == TX_IDLE && next_state == TX_START) begin
+        tx_load_enable <= '1;
+      end else begin
+        tx_load_enable <= '0;
+      end
+
       state <= next_state;
     end
   end
@@ -76,8 +92,10 @@ module tx_fsm
     next_state = state;
 
     case (state)
-      TX_IDLE:   if (tx_start_pulse) next_state = TX_START;
-      TX_START:  if (bit_period_complete) next_state = TX_DATA;
+      TX_IDLE: if (tx_start_pulse && !cts_sync) next_state = TX_START;
+      TX_START:
+      if (cts_sync) next_state = TX_IDLE;
+      else if (bit_period_complete) next_state = TX_DATA;
       TX_DATA: begin
         if (32'(data_bit_periods) == DATA_BITS - 1)
           next_state = parity_mode == NONE ? TX_STOP : TX_PARITY;
@@ -96,13 +114,11 @@ module tx_fsm
   always_comb begin : state_output
     tx = !tx_break;
     tx_shift_enable = '0;
-    tx_load_enable = '0;
 
     case (state)
       TX_IDLE:   tx = !tx_break;
       TX_START: begin
         tx = tx_break;
-        tx_load_enable = '1;
       end
       TX_DATA: begin
         tx = tx_break ? '0 : tx_data_bit;
@@ -114,7 +130,6 @@ module tx_fsm
       default: begin
         tx = !tx_break;
         tx_shift_enable = '0;
-        tx_load_enable = '0;
       end
     endcase
   end

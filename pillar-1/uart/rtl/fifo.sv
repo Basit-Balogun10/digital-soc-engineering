@@ -4,10 +4,14 @@ module fifo
     input logic clk,
     input logic rst_n,
     input logic is_rx,
+    // TODO: threshold value below can only be 0-15, uart_top should offset by +1 to allow full flexibility (to imply 1-16 fifo depth levels)
+    input logic [$clog2(FIFO_DEPTH) - 1:0] rts_full_threshold,
     output logic full,
     output logic empty,
     output logic overrun,
+    output logic rts,
     output logic [DATA_BITS - 1:0] fifo_reg[FIFO_DEPTH],
+    output logic [$clog2(FIFO_DEPTH):0] fifo_occupancy,
     fifo_ctrl_if.fifo fifo_ctrl
 );
   // extra-bit wide to track full vs empty when both pointers are equal (but addressing only uses lower N-1 bits, not including the extra MSB)
@@ -23,6 +27,9 @@ module fifo
   )] != read_ptr[$clog2(
       FIFO_DEPTH
   )];
+
+  assign fifo_occupancy = write_ptr - read_ptr;  // wraps (unsigned subtraction)
+  assign rts = int'(fifo_occupancy) == int'(rts_full_threshold);
 
   always_ff @(posedge clk) begin : fifo_empty
     if (!rst_n) begin
